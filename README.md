@@ -23,8 +23,14 @@ CUSTOM  (based on MAX32650 EV-Kit V1)
 ```
 ## Required Connections
 
--   Connect a USB cable between the PC and the USB-C connector on the MAX32666FTHR2 board
--   Open an terminal application on the PC and connect to the FTHR2's console UART at 115200, 8-N-1.
+-   Connect a USB cable between the PC and the USB/PWR-UART connector on the MAX32650 EV-Kit
+-   Open an terminal application on the PC and connect to the console UART at 115200, 8-N-1.
+-   Connect all the wires from MAX32650 Ev-Kit to match the FTHR2 pins on the GTC Board.  The updated connection from MAX32650 is in Red color.
+
+<img width="2284" height="1426" alt="image" src="https://github.com/user-attachments/assets/354c5a0f-5232-4afe-a2f9-01c7b723d1b7" />
+
+<img width="2259" height="892" alt="image" src="https://github.com/user-attachments/assets/51d715ae-c319-4d2e-b445-c87b3a023cff" />
+
 
 ## Expected Output
 
