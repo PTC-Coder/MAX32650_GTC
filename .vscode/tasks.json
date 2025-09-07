@@ -48,6 +48,41 @@
             "dependsOn":["build"]
         },
         {
+            "label": "JLink-Flash",
+            "type": "shell", 
+            "group": "build",
+            "problemMatcher": [],           
+            "dependsOrder": "sequence",
+            "dependsOn": [
+                "Copy ELF",
+                "JLink Flash Upload",
+            ],
+
+        },
+        {
+            "label": "Clean, Clean-Periph, Build, JLink-Flash",
+            "type": "shell",
+            "group": "build",
+            "problemMatcher": [],
+            "dependsOrder": "sequence",
+            "dependsOn": [
+                "clean",
+                "clean-periph",
+                "build",
+                "JLink-Flash",
+            ],
+        },
+        {
+            "label": "Copy ELF",
+            "type": "shell",
+            "command": "copy/y ${workspaceFolder}\\build\\${config:program_file} c:\\temp\\temp.elf;",            
+        },
+        {            
+            "label": "JLink Flash Upload",
+            "type": "shell",
+            "command": "\"${config:JLINK_path}/jlink.exe\" -device MAX32666 -CommandFile ${workspaceFolder}\\.vscode\\FlashScript.jlink",               
+        },
+        {
             "label": "flash & run",
             "type": "shell",
             "command": "arm-none-eabi-gdb",
@@ -63,6 +98,20 @@
             "problemMatcher": [],
             "dependsOn":["build"]
         },
+        {
+            "label": "Clean, Clean-Periph, Build, Flash&Run",
+            "type": "shell",
+            "group": "build",
+            "problemMatcher": [],
+            "dependsOrder": "sequence",
+            "dependsOn": [
+                "clean",
+                "clean-periph",
+                "build",
+                "flash & run",
+            ],
+        },
+
         {
             "label": "erase flash",
             "type": "shell",

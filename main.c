@@ -46,6 +46,8 @@
 #include "arm_fir_decimate_fast_q31_bob.h"
 #include "arm_fir_decimate_fast_q31_HB.h"
 
+//#include "SEGGER_RTT.h"
+
 /***** #defines  *****/
 
 /********************************************************************************************/
@@ -64,10 +66,10 @@
 #define MXC_SPI2_SSIDX 0
 
 //****************************************************************
-//SPI defines for SPI1 slave
+//SPI defines for SPI3 slave
 //****************************************************************
 
-#define SPI_MASTER_IRQ SPI1_IRQn
+#define SPI_MASTER_IRQ SPI3_IRQn
 
 
 // defines for DMA
@@ -185,14 +187,14 @@
 #define MXC_GPIO_PORT_OUT2 MXC_GPIO2
 
 // bit-bang slave-sel during ADC init
-#define MXC_GPIO_PIN_OUT_1_23 MXC_GPIO_PIN_23
+#define MXC_GPIO_PIN_OUT_0_19 MXC_GPIO_PIN_19   //MXC_GPIO_PIN_OUT_1_23 MXC_GPIO_PIN_23
 
 //Pin 0.20 used for enabling and disabling CNV start signal through 74LV4060
-#define MXC_GPIO_PIN_OUT_1_24 MXC_GPIO_PIN_24
+#define MXC_GPIO_PIN_OUT_0_17 MXC_GPIO_PIN_17//MXC_GPIO_PIN_OUT_1_24 MXC_GPIO_PIN_24
 
 //Pin 0.21 use for hardware reset  --> P1.25 for MAX32650
 //#define MXC_GPIO_PIN_OUT21 MXC_GPIO_PIN_21
-#define MXC_GPIO_PIN_OUT_1_25 MXC_GPIO_PIN_25
+#define MXC_GPIO_PIN_OUT_0_15 MXC_GPIO_PIN_15 //MXC_GPIO_PIN_OUT_1_25 MXC_GPIO_PIN_25
 
 #define MXC_GPIO_PIN_OUT_2_26 MXC_GPIO_PIN_26  // gpio5, pin 6 on feather, green LED on motherboard
 
@@ -203,6 +205,8 @@
 #define MXC_GPIO_PIN_OUT12 MXC_GPIO_PIN_12  // gpio12, pin 4 on feather connected to pin 6 of p8 header, used for timing code
 
 #define MXC_GPIO_PIN_OUT30  MXC_GPIO_PIN_30 //Blue LED on FTHR board (not motherboard!)
+
+#define MXC_GPIO_PIN_IN_1_30 MXC_GPIO_PIN_30  // gpio3, pin 5 on feather, blue led on motherboard
 
 
 // Parameters for PWM output
@@ -270,17 +274,19 @@ FRESULT set_timestamp (
 // structs for spi,gpio
 
 
-mxc_gpio_cfg_t gpio_out_1_23;//gpio_out16;
-mxc_gpio_cfg_t gpio_out_1_24;//gpio_out20; // adc clock enable
+mxc_gpio_cfg_t gpio_out_0_19;  //gpio_out_1_23;//gpio_out16;
+mxc_gpio_cfg_t gpio_out_0_17; //gpio_out_1_24;//gpio_out20; // adc clock enable
 mxc_gpio_cfg_t gpio_out_2_26;//gpio_out5; //pin 6 on feather, green LED on motherboard  --> Pin 2.26 on MAX32650 EVKit, Green LED on MB
 mxc_gpio_cfg_t gpio_in_2_25;//gpio_in3; // pin 5 on feather, blue led on motherboard  --> Pin 2.25 on MAX32650 EvKit, Blue LED on MB
 
+mxc_gpio_cfg_t gpio_in_1_30;  //ADC Busy pin
+
 //mxc_gpio_cfg_t gpio_in30; // the blue LED on feather (not on motherboard!)  //Not being used
-mxc_gpio_cfg_t gpio_out_0_17;//gpio_out12; // pin 4 on feather, used for timing etsts
+mxc_gpio_cfg_t gpio_out_0_14; //gpio_out_0_17;//gpio_out12; // pin 4 on feather, used for timing etsts
 
 // structs for spi port
 mxc_spi_req_t SPI2_req_master_ctrl_write; // use this struct when using spi2 to write to the adc control port
-mxc_spi_req_t SPI1_req; // struct for SPI int
+mxc_spi_req_t SPI3_req; // struct for SPI int
 
 
 volatile uint32_t count_dma_irq = 0;
@@ -443,7 +449,7 @@ static uint32_t offsetSDbuff = 0; // offset in bytes into the SD write memory, f
 static uint32_t blockPtrModuloDMA=0;// the block pointer for reading from the DMA buff for the slow-sd scheme
 static uint32_t offsetDMA = 0; // offset in bytes for writing the dma memory, for the slow-sd scheme
 
-uint8_t SPI1_rx_3byte[3];
+uint8_t SPI3_rx_3byte[3];
 
 //static q15_t spi_data_q15; // use for 16-bit
 
@@ -464,7 +470,7 @@ volatile uint32_t errCount=0;
 
 
 // function prototypes
-
+void DMA0_IRQHandler(void);
 // magpie_new - all the filter instances for every sample-rate
 // CMSIS instances. Note that the "fast" version
 // uses the same structure as the regular version
@@ -546,21 +552,21 @@ int umount()
 }
 
 
-void read_SPI1_regs() // for debug only
+void read_SPI3_regs() // for debug only
 {
 	// note, these appear in the same order as in the user guide
-	SPI1_DATA0_direct_probe =  SPI1_DATA0_direct;
-	SPI1_CTRL0_direct_probe =  SPI1_CTRL0_direct;
-	SPI1_CTRL1_direct_probe =  SPI1_CTRL1_direct;
-	SPI1_CTRL2_direct_probe =  SPI1_CTRL2_direct;
-	SPI1_SS_TIME_direct_probe =  SPI1_SS_TIME_direct;
-	SPI1_CLK_CFG_direct_probe =  SPI1_CLK_CFG_direct;
-	SPI1_DMA_direct_probe =  SPI1_DMA_direct;
-	SPI1_INT_FL_direct_probe =  SPI1_INT_FL_direct;
-	SPI1_INT_EN_direct_probe =  SPI1_INT_EN_direct;
-	SPI1_WAKE_FL_direct_probe =  SPI1_WAKE_FL_direct;
-	SPI1_WAKE_EN_direct_probe =  SPI1_WAKE_EN_direct;
-	SPI1_STAT_direct_probe =  SPI1_STAT_direct;
+	SPI3_DATA0_direct_probe =  SPI3_DATA0_direct;
+	SPI3_CTRL0_direct_probe =  SPI3_CTRL0_direct;
+	SPI3_CTRL1_direct_probe =  SPI3_CTRL1_direct;
+	SPI3_CTRL2_direct_probe =  SPI3_CTRL2_direct;
+	SPI3_SS_TIME_direct_probe =  SPI3_SS_TIME_direct;
+	SPI3_CLK_CFG_direct_probe =  SPI3_CLK_CFG_direct;
+	SPI3_DMA_direct_probe =  SPI3_DMA_direct;
+	SPI3_INT_FL_direct_probe =  SPI3_INT_FL_direct;
+	SPI3_INT_EN_direct_probe =  SPI3_INT_EN_direct;
+	SPI3_WAKE_FL_direct_probe =  SPI3_WAKE_FL_direct;
+	SPI3_WAKE_EN_direct_probe =  SPI3_WAKE_EN_direct;
+	SPI3_STAT_direct_probe =  SPI3_STAT_direct;
 }
 
 void read_SPI2_regs() // for debug only
@@ -611,16 +617,27 @@ void reset_adc()
 	// MXC_Delay(100000);
 	// MXC_GPIO_OutSet(gpio_out21.port,gpio_out21.mask); // enable ADC
 
-	mxc_gpio_cfg_t gpio_out_1_25;
-	gpio_out_1_25.port =MXC_GPIO_PORT_OUT1;
-	gpio_out_1_25.mask= MXC_GPIO_PIN_OUT_1_25;
-	gpio_out_1_25.pad = MXC_GPIO_PAD_NONE;
-	gpio_out_1_25.func = MXC_GPIO_FUNC_OUT;
-	gpio_out_1_25.vssel = MXC_GPIO_VSSEL_VDDIO;
-	MXC_GPIO_Config(&gpio_out_1_25);
-	MXC_GPIO_OutClr(gpio_out_1_25.port,gpio_out_1_25.mask); // start with ADC disabled
+	// mxc_gpio_cfg_t gpio_out_1_25;
+	// gpio_out_1_25.port =MXC_GPIO_PORT_OUT1;
+	// gpio_out_1_25.mask= MXC_GPIO_PIN_OUT_1_25;
+	// gpio_out_1_25.pad = MXC_GPIO_PAD_NONE;
+	// gpio_out_1_25.func = MXC_GPIO_FUNC_OUT;
+	// gpio_out_1_25.vssel = MXC_GPIO_VSSEL_VDDIOH;
+	// MXC_GPIO_Config(&gpio_out_1_25);
+	// MXC_GPIO_OutClr(gpio_out_1_25.port,gpio_out_1_25.mask); // start with ADC disabled
+	// MXC_Delay(100000);
+	// MXC_GPIO_OutSet(gpio_out_1_25.port,gpio_out_1_25.mask); // enable ADC
+
+	mxc_gpio_cfg_t gpio_out_0_15;
+	gpio_out_0_15.port =MXC_GPIO_PORT_OUT0;
+	gpio_out_0_15.mask= MXC_GPIO_PIN_OUT_0_15;
+	gpio_out_0_15.pad = MXC_GPIO_PAD_NONE;
+	gpio_out_0_15.func = MXC_GPIO_FUNC_OUT;
+	gpio_out_0_15.vssel = MXC_GPIO_VSSEL_VDDIOH;
+	MXC_GPIO_Config(&gpio_out_0_15);
+	MXC_GPIO_OutClr(gpio_out_0_15.port,gpio_out_0_15.mask); // start with ADC disabled
 	MXC_Delay(100000);
-	MXC_GPIO_OutSet(gpio_out_1_25.port,gpio_out_1_25.mask); // enable ADC
+	MXC_GPIO_OutSet(gpio_out_0_15.port,gpio_out_0_15.mask); // enable ADC
 }
 
 
@@ -640,14 +657,14 @@ void set_adc_host_clock_mode()
 	uint8_t SPI2_rx_3byte[3];
 
 	// configure gpio bit-bang AFTER spi2 init
-	gpio_out_1_23.port = MXC_GPIO_PORT_OUT1;
-	gpio_out_1_23.mask = MXC_GPIO_PIN_OUT_1_23;
-	gpio_out_1_23.pad = MXC_GPIO_PAD_NONE;
-	gpio_out_1_23.func = MXC_GPIO_FUNC_OUT;
-	gpio_out_1_23.vssel = MXC_GPIO_VSSEL_VDDIO;
-	gpio_out_1_23.drvstr = MXC_GPIO_DRVSTR_3;
-	ret = MXC_GPIO_Config(&gpio_out_1_23);
-	MXC_GPIO_OutSet(gpio_out_1_23.port, gpio_out_1_23.mask); // SS high
+	gpio_out_0_19.port = MXC_GPIO_PORT_OUT0;
+	gpio_out_0_19.mask = MXC_GPIO_PIN_OUT_0_19;
+	gpio_out_0_19.pad = MXC_GPIO_PAD_NONE;
+	gpio_out_0_19.func = MXC_GPIO_FUNC_OUT;
+	gpio_out_0_19.vssel = MXC_GPIO_VSSEL_VDDIO;
+	gpio_out_0_19.drvstr = MXC_GPIO_DRVSTR_3;
+	ret = MXC_GPIO_Config(&gpio_out_0_19);
+	MXC_GPIO_OutSet(gpio_out_0_19.port, gpio_out_0_19.mask); // SS high
 
 	ret = MXC_SPI_Init(MXC_SPI2, 1, 0, 1, 0, 5000000);
 	if (ret != E_NO_ERROR) {
@@ -689,12 +706,12 @@ void set_adc_host_clock_mode()
 	SPI2_tx_3byte[1] = (uint8_t)reg_addr;  //Separating second byte of address
 	SPI2_tx_3byte[2] = AD463X_REG_READ_DUMMY;
 	//	**** Perform Transaction ****
-	MXC_GPIO_OutClr(gpio_out_1_23.port, gpio_out_1_23.mask);
+	MXC_GPIO_OutClr(gpio_out_0_19.port, gpio_out_0_19.mask);
 	ret = MXC_SPI_MasterTransaction(&SPI2_req_master_ctrl_write);
 	if (ret != E_NO_ERROR) {
 		   debug1 = 2;
 		}
-	MXC_GPIO_OutSet(gpio_out_1_23.port, gpio_out_1_23.mask);
+	MXC_GPIO_OutSet(gpio_out_0_19.port, gpio_out_0_19.mask);
 	MXC_Delay(4);
 // ** now write clock divider for host clock mode
 	reg_addr = AD463X_REG_OSCILATOR; // 0x21
@@ -702,10 +719,10 @@ void set_adc_host_clock_mode()
 	SPI2_tx_3byte[1] = (uint8_t)reg_addr;  //Separating second byte of address
 	SPI2_tx_3byte[2] = 0x02;
 	//	**** Perform Transaction ****
-	MXC_GPIO_OutClr(gpio_out_1_23.port, gpio_out_1_23.mask);
+	MXC_GPIO_OutClr(gpio_out_0_19.port, gpio_out_0_19.mask);
 	MXC_Delay(4);
 	MXC_SPI_MasterTransaction(&SPI2_req_master_ctrl_write);
-	MXC_GPIO_OutSet(gpio_out_1_23.port, gpio_out_1_23.mask);
+	MXC_GPIO_OutSet(gpio_out_0_19.port, gpio_out_0_19.mask);
 	MXC_Delay(4);
 	// ** now write host clock mode
 	// ** note, once this is set, an sclk burst will appear on BUSY, but only when Slave Sel falls
@@ -715,10 +732,10 @@ void set_adc_host_clock_mode()
 	SPI2_tx_3byte[2] = 0x20;
 	//SPI2_tx_3byte[2] = 0x00;
 	//	**** Perform Transaction ****
-	MXC_GPIO_OutClr(gpio_out_1_23.port, gpio_out_1_23.mask);
+	MXC_GPIO_OutClr(gpio_out_0_19.port, gpio_out_0_19.mask);
 	MXC_Delay(4);
 	MXC_SPI_MasterTransaction(&SPI2_req_master_ctrl_write);
-	MXC_GPIO_OutSet(gpio_out_1_23.port, gpio_out_1_23.mask);
+	MXC_GPIO_OutSet(gpio_out_0_19.port, gpio_out_0_19.mask);
 	MXC_Delay(4);
 
 
@@ -728,19 +745,19 @@ void set_adc_host_clock_mode()
 	SPI2_tx_3byte[1] = (uint8_t)reg_addr;  //Separating second byte of address
 	SPI2_tx_3byte[2] = AD463X_EXIT_CFG_MODE; // 0x01
 	//	**** Perform Transaction ****
-	MXC_GPIO_OutClr(gpio_out_1_23.port, gpio_out_1_23.mask);
+	MXC_GPIO_OutClr(gpio_out_0_19.port, gpio_out_0_19.mask);
 	MXC_Delay(4);
 
 	MXC_SPI_MasterTransaction(&SPI2_req_master_ctrl_write);
 	MXC_Delay(4);
-	MXC_GPIO_OutSet(gpio_out_1_23.port, gpio_out_1_23.mask);
+	MXC_GPIO_OutSet(gpio_out_0_19.port, gpio_out_0_19.mask);
 	MXC_Delay(100);
 	// now shutdown SPI2 and the bit-bang GPIO SS control
 	MXC_SPI_Shutdown(MXC_SPI2);
 	// make gpio tri-state so ADC SS cab be driven by ext FS soure
-	gpio_out_1_23.func = MXC_GPIO_FUNC_IN;
-	MXC_GPIO_Config(&gpio_out_1_23);
-	MXC_GPIO_Shutdown(gpio_out_1_23.mask); // let the ADC clock series resistor drive the SPI1_Slave SS pin
+	gpio_out_0_19.func = MXC_GPIO_FUNC_IN;
+	MXC_GPIO_Config(&gpio_out_0_19);
+	MXC_GPIO_Shutdown(gpio_out_0_19.mask); // let the ADC clock series resistor drive the SPI3_Slave SS pin
 
 }
 
@@ -748,7 +765,7 @@ void set_adc_host_clock_mode()
 
 
 // spi 1 receives the stream adc input and is connected to the dma, so it must be a slave.
-// warning, board hacks are required to make spi1 work as a slave.
+// warning, board hacks are required to make SPI3 work as a slave.
 // its complicated because spi2 is set up to write to the adc control registers
 // using gpio bit-bang for the slave select, but in adc-streaming mode, the
 // slave select must be driven externally. So we connect the adc convert signal
@@ -759,33 +776,33 @@ void set_adc_host_clock_mode()
 // can be enabled sing a gpio, so the slave select pin can either drive the output or be driven
 // from the timing generator
 
-void spi1_init_slave()
+void SPI3_init_slave()
 {
 	// over-rides the GPIO control of SS, so do all the ADC register init writes first
-	SPI1_req.spi = MXC_SPI1;
-	SPI1_req.txData = NULL;
-	SPI1_req.rxData = (uint8_t *)SPI1_rx_3byte;
-	SPI1_req.txLen = 0;
-	SPI1_req.rxLen = 3; // chars
-	SPI1_req.ssIdx = 0;
-	SPI1_req.ssDeassert = 1;
-	SPI1_req.txCnt = 0;
-	SPI1_req.rxCnt = 0;
-	SPI1_req.completeCB = NULL;
+	SPI3_req.spi = MXC_SPI3;
+	SPI3_req.txData = NULL;
+	SPI3_req.rxData = (uint8_t *)SPI3_rx_3byte;
+	SPI3_req.txLen = 0;
+	SPI3_req.rxLen = 3; // chars
+	SPI3_req.ssIdx = 0;
+	SPI3_req.ssDeassert = 1;
+	SPI3_req.txCnt = 0;
+	SPI3_req.rxCnt = 0;
+	SPI3_req.completeCB = NULL;
 
-	MXC_SPI_Init(MXC_SPI1, 0, 0, 0, 0, 0);
+	MXC_SPI_Init(MXC_SPI3, 0, 0, 0, 0, 0);
 	//Setting the data size
-	MXC_SPI_SetDataSize(MXC_SPI1, 8);// bits/char, each spi trans takes in 3 chars = 24 bits
-	//Setting width of the SPI in this case 3- wire SPI for SPI1 master
-	MXC_SPI_SetWidth(MXC_SPI1, SPI_WIDTH_3WIRE);
+	MXC_SPI_SetDataSize(MXC_SPI3, 8);// bits/char, each spi trans takes in 3 chars = 24 bits
+	//Setting width of the SPI in this case 3- wire SPI for SPI3 master
+	MXC_SPI_SetWidth(MXC_SPI3, SPI_WIDTH_3WIRE);
 	//Setting the SPI mode
-	MXC_SPI_SetMode(MXC_SPI1, SPI_MODE_1);
+	MXC_SPI_SetMode(MXC_SPI3, SPI_MODE_2);
 
-	MXC_SPI_SlaveTransactionAsync(&SPI1_req); // complete the init; don't use the data!
+	MXC_SPI_SlaveTransactionAsync(&SPI3_req); // complete the init; don't use the data!
 
-	MXC_SPI_SetRXThreshold(MXC_SPI1, 24); // threshold of 24 bytes ( 8 samples of 3 bytes each) to trigger dma
-	SPI1_CTRL0_direct &= 0xfffffffe; // disable the port
-	MXC_SPI_ClearRXFIFO(MXC_SPI1); // clear the fifo, start only on pos edge of Slave-sel-B
+	MXC_SPI_SetRXThreshold(MXC_SPI3, 24); // threshold of 24 bytes ( 8 samples of 3 bytes each) to trigger dma
+	SPI3_CTRL0_direct &= 0xfffffffe; // disable the port
+	MXC_SPI_ClearRXFIFO(MXC_SPI3); // clear the fifo, start only on pos edge of Slave-sel-B
 
 }
 
@@ -801,7 +818,7 @@ void I2C_Callback(mxc_i2c_req_t *req, int error)
 void DMA_CALLBACK_func(int a, int b)
 // this gets called by the DMA 1st, and when this returns, it goes directly to the DMA0_IRQHandler()
 {
-	printf("DMA Call back triggered\n");
+
 }
 
 
@@ -811,24 +828,33 @@ void init_dma_MXC()
 	MXC_DMA_Init();
 	mychannel = MXC_DMA_AcquireChannel();
 
+	if (mychannel < 0) {
+		printf("ERROR: Failed to acquire DMA channel!\n");
+		return;
+	}
+
 	mxc_dma_srcdst_t dma_transfer;
 	dma_transfer.ch = mychannel;
 	dma_transfer.source = NULL;
+	//dma_transfer.source = (void*)SPI3_BASE_addr;
+	
 	dma_transfer.dest = &dmaDestBuff[0];
 	dma_transfer.len = DMA_buffLen_bytes; // 3 X 8K bytes
 
 	mxc_dma_config_t dma_config;
 	dma_config.ch = mychannel;
-	dma_config.reqsel = MXC_DMA_REQUEST_SPI1RX;
+	dma_config.reqsel = MXC_DMA_REQUEST_SPI3RX;
 	dma_config.srcwd = MXC_DMA_WIDTH_BYTE;
 	dma_config.dstwd = MXC_DMA_WIDTH_BYTE;
-	dma_config.srcinc_en = 1; // this is ignored??
+	dma_config.srcinc_en = 0; // this is ignored??
 	dma_config.dstinc_en = 1;
 
 	mxc_dma_adv_config_t advConfig;
 	advConfig.ch = mychannel;
 	advConfig.prio = MXC_DMA_PRIO_HIGH;
 	advConfig.reqwait_en = 0;
+	//advConfig.reqwait_en = 1; // Wait for SPI request
+
 	advConfig.tosel = MXC_DMA_TIMEOUT_4_CLK;
 	advConfig.pssel = MXC_DMA_PRESCALE_DISABLE;
 	advConfig.burst_size = 24;
@@ -841,6 +867,26 @@ void init_dma_MXC()
 	MXC_DMA_SetChannelInterruptEn(mychannel, false, true); // ctz
 	MXC_DMA_SetCallback(mychannel, DMA_CALLBACK_func);
 	MXC_DMA_EnableInt(mychannel);
+
+	// Manually enable DMA interrupt and CTZ interrupt (API doesn't set these properly)
+	MXC_DMA->cn |= (1 << mychannel); // Enable interrupt for our channel in CN register
+	MXC_DMA->ch[mychannel].cfg |= (1UL << 31); // Enable CTZ interrupt in channel config
+	printf("DMA interrupt system configured and verified working\n");
+	
+	// Set up interrupt vector directly to our handler (bypass callback mechanism)
+	MXC_NVIC_SetVector(MXC_DMA_CH_GET_IRQ(mychannel), DMA0_IRQHandler);
+	NVIC_EnableIRQ(MXC_DMA_CH_GET_IRQ(mychannel));
+	
+	printf("DMA interrupt setup: IRQ %d -> DMA0_IRQHandler\n", MXC_DMA_CH_GET_IRQ(mychannel));
+	
+	// Verify NVIC setup
+	uint32_t irq_num = MXC_DMA_CH_GET_IRQ(mychannel);
+	printf("NVIC verification:\n");
+	printf("  IRQ %d enabled: %s\n", irq_num, NVIC_GetEnableIRQ(irq_num) ? "YES" : "NO");
+	printf("  IRQ %d pending: %s\n", irq_num, NVIC_GetPendingIRQ(irq_num) ? "YES" : "NO");
+	printf("  IRQ %d priority: %d\n", irq_num, NVIC_GetPriority(irq_num));
+	
+	printf("DMA channel %d configured successfully\n", mychannel);
 
 }
 
@@ -1101,9 +1147,10 @@ void DMA0_IRQHandler()
 
 
     // get ready for next dma transfer
-    DMA0_CH0_CFG_direct |= 0x3; // enable dma and reload bits
-    DMA0_CH0_CNT_RLD_direct |= 0x80000000; // redundant, do I have to do it again here?
-
+    //DMA0_CH0_CFG_direct |= 0x3; // enable dma and reload bits
+    //DMA0_CH0_CNT_RLD_direct |= 0x80000000; // redundant, do I have to do it again here?
+	// get ready for next dma transfer - use API instead of direct register manipulation
+    MXC_DMA_Start(mychannel);
 
 
 }
@@ -1541,13 +1588,13 @@ int main(void)
 
 	debug1= 16;
 
-	for (size_t i = 0; i < 10; i++)
+	for (size_t i = 0; i < 5; i++)
 	{
-		LED_On(LED_BLUE);
+		LED_On(LED_GREEN);
 		MXC_Delay(500000);
-		LED_Off(LED_BLUE);
+		LED_Off(LED_GREEN);
 		MXC_Delay(500000);
-		printf("Start ADC Clock in ... %d\n", 10-i);
+		printf("Start ADC Clock in ... %d\n", 5-i);
 	}
 
 	// blue led pin 5 on feather
@@ -1561,18 +1608,18 @@ int main(void)
 
 
 // adc fs clock enable. Note after the spi_init_slave, this will be over-written by the spi definition and will go high
-	gpio_out_1_24.port =MXC_GPIO_PORT_OUT1;
-	gpio_out_1_24.mask= MXC_GPIO_PIN_OUT_1_24;
-	gpio_out_1_24.pad = MXC_GPIO_PAD_NONE;
-	gpio_out_1_24.func = MXC_GPIO_FUNC_OUT;
-	gpio_out_1_24.vssel = MXC_GPIO_VSSEL_VDDIO;
-	MXC_GPIO_Config(&gpio_out_1_24);
-	MXC_GPIO_OutClr(gpio_out_1_24.port,gpio_out_1_24.mask); // start with adc clock disabled
+	gpio_out_0_17.port =MXC_GPIO_PORT_OUT0;
+	gpio_out_0_17.mask= MXC_GPIO_PIN_OUT_0_17;
+	gpio_out_0_17.pad = MXC_GPIO_PAD_NONE;
+	gpio_out_0_17.func = MXC_GPIO_FUNC_OUT;
+	gpio_out_0_17.vssel = MXC_GPIO_VSSEL_VDDIO;
+	MXC_GPIO_Config(&gpio_out_0_17);
+	MXC_GPIO_OutClr(gpio_out_0_17.port,gpio_out_0_17.mask); // start with adc clock disabled
 
 
 
 /* 	// gpio 3 is pin 5 on the feather header and blue LED on motherboard
-	// we will disconnect the blue LED and use this gpio as in input from spi1 slave select
+	// we will disconnect the blue LED and use this gpio as in input from SPI3 slave select
 	// so we can syncronize starting the spi port with rising slave-sel-B
 	gpio_in3.port =MXC_GPIO_PORT_OUT0;
 	gpio_in3.mask= MXC_GPIO_PIN_OUT3;
@@ -1599,7 +1646,6 @@ int main(void)
 	// ret = MXC_GPIO_Config(&gpio_out5);
 
 
-
 	// ***  set up I2C, write address 0x98, read addr 0x99
 
 	// i2cErr = MXC_I2C_Init(I2C_MASTER, 1, 0);
@@ -1623,9 +1669,9 @@ int main(void)
 
 	set_adc_host_clock_mode();
 	MXC_Delay(100000);
-	MXC_GPIO_OutSet(gpio_out_1_24.port,gpio_out_1_24.mask); // turn on adc clock
+	MXC_GPIO_OutSet(gpio_out_0_17.port,gpio_out_0_17.mask); // turn on adc clock
 
-	spi1_init_slave();
+	SPI3_init_slave();
 	// over-rides the GPIO control of SS, so do all the ADC register init writes first
 	// note this sets the adc clock enable gpio high accidentally, but its already ON
 	debug1 = 11;
@@ -1638,8 +1684,8 @@ int main(void)
 //	PWMTimer();
 //	read_TMR0_regs();
 	// note, the following could probably be done with MXC functions
-	SPI1_DMA_direct = 0b00000000010110000000000000000000; // 24 bytes, enable rx fifo
-	SPI1_DMA_direct |= 0x80000000;// receive dma enable
+	SPI3_DMA_direct = 0b00000000010110000000000000000000; // 24 bytes, enable rx fifo
+	SPI3_DMA_direct |= 0x80000000;// receive dma enable
 
 
 	stall = 1;
@@ -1652,7 +1698,7 @@ int main(void)
 	}
 	printf("Partial Writes cleared ...\n\n");
 
-	SPI1_CTRL0_direct |= 0x00000001; // start the port (fifo was previously cleared)
+	SPI3_CTRL0_direct |= 0x00000001; // start the port (fifo was previously cleared)
 	MXC_DMA_Start(mychannel); // sets bits 0 and 1 of control reg and bit 31 of count reload reg
 
 	// note, the DMA enable and reload bits need to be set every time
@@ -1667,17 +1713,23 @@ int main(void)
 			delta = dataBlocksDmaCount - dataBlocksConsumedCount;
 		}
 		//MXC_GPIO_OutSet(gpio_out5.port,gpio_out5.mask); // timing test
-		//f_write(&file, SD_write_buff + offsetSDbuff, numBytesSDwrite, &bw); // # bytes = 3X word length of buffer, 24 bits
+		f_write(&file, SD_write_buff + offsetSDbuff, numBytesSDwrite, &bw); // # bytes = 3X word length of buffer, 24 bits
 		//MXC_GPIO_OutClr(gpio_out5.port,gpio_out5.mask); // timing test
 
 		dataBlocksConsumedCount+=1;
 		blockPtrModuloSDbuff = (blockPtrModuloSDbuff+1) & block_ptr_modulo_mask; // wraps before end of sd_write_buff
 		offsetSDbuff = blockPtrModuloSDbuff*numBytesSDwrite;
-		printf("Data Block Consumed Count %d ...\n", dataBlocksConsumedCount);
+		//printf("Data Block Consumed Count %d ...\n", dataBlocksConsumedCount);
+
+		if(dataBlocksConsumedCount % 10 == 0)
+		{
+			LED_Toggle(LED_GREEN);
+		}
+
 	}
 
 
-	SPI1_CTRL0_direct &= 0xfffffffe; // stop the port
+	SPI3_CTRL0_direct &= 0xfffffffe; // stop the port
 	MXC_DMA_Stop(mychannel);
 
 

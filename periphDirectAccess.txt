@@ -1,6 +1,8 @@
 // address of peripherals for direct bare-metal register access
-#define SPI1_BASE_addr  0x40019000
-#define SPI2_BASE_addr  0x4001A000
+#define SPI0_BASE_addr  0x40046000
+#define SPI1_BASE_addr  0x40047000
+#define SPI2_BASE_addr  0x40048000
+#define SPI3_BASE_addr  0x400BE000
 #define DMA0_BASE_addr  0x40028000
 #define TMR0_BASE_addr  0x40010000 
 
@@ -43,6 +45,20 @@
 #define SPI2_WAKE_EN_direct  (*( ( volatile unsigned int * )SPI2_WAKE_EN_addr ) )
 #define SPI2_STAT_direct  (*( ( volatile unsigned int * )SPI2_STAT_addr ) )
 
+#define SPI3_DATA0_direct  (*( ( volatile unsigned int * )SPI3_DATA0_addr ) )
+#define SPI3_DATA0_char_direct  (*( ( volatile unsigned char * )SPI3_DATA0_addr ) )
+#define SPI3_CTRL0_direct  (*( (  unsigned int * )SPI3_CTRL0_addr ) )
+#define SPI3_CTRL1_direct  (*( ( volatile unsigned int * )SPI3_CTRL1_addr ) )
+#define SPI3_CTRL2_direct  (*( ( volatile unsigned int * )SPI3_CTRL2_addr ) )
+#define SPI3_SS_TIME_direct  (*( ( volatile unsigned int * )SPI3_SS_TIME_addr ) )
+#define SPI3_CLK_CFG_direct  (*( ( volatile unsigned int * )SPI3_CLK_CFG_addr ) )
+#define SPI3_DMA_direct  (*( ( volatile unsigned int * )SPI3_DMA_addr ) )
+#define SPI3_INT_FL_direct  (*( ( volatile unsigned int * )SPI3_INT_FL_addr ) )
+#define SPI3_INT_EN_direct  (*( ( volatile unsigned int * )SPI3_INT_EN_addr ) )
+#define SPI3_WAKE_FL_direct  (*( ( volatile unsigned int * )SPI3_WAKE_FL_addr ) )
+#define SPI3_WAKE_EN_direct  (*( ( volatile unsigned int * )SPI3_WAKE_EN_addr ) )
+#define SPI3_STAT_direct  (*( ( volatile unsigned int * )SPI3_STAT_addr ) )
+
 
 #define TMR0_CNT_direct  (*( ( volatile unsigned int * )TMR0_CNT_addr ) )
 #define TMR0_CMP_direct  (*( ( volatile unsigned int * )TMR0_CMP_addr ) )
@@ -81,6 +97,19 @@ static uint32_t SPI2_INT_EN_addr =  (SPI2_BASE_addr + MXC_R_SPI_INT_EN);
 static uint32_t SPI2_WAKE_FL_addr =  (SPI2_BASE_addr + MXC_R_SPI_WAKE_FL);
 static uint32_t SPI2_WAKE_EN_addr =  (SPI2_BASE_addr + MXC_R_SPI_WAKE_EN);
 static uint32_t SPI2_STAT_addr =  (SPI2_BASE_addr + MXC_R_SPI_STAT);
+
+static uint32_t SPI3_DATA0_addr =  SPI3_BASE_addr;
+static uint32_t SPI3_CTRL0_addr =  (SPI3_BASE_addr + MXC_R_SPI_CTRL0);
+static uint32_t SPI3_CTRL1_addr =  (SPI3_BASE_addr + MXC_R_SPI_CTRL1);
+static uint32_t SPI3_CTRL2_addr =  (SPI3_BASE_addr + MXC_R_SPI_CTRL2);
+static uint32_t SPI3_SS_TIME_addr =  (SPI3_BASE_addr + MXC_R_SPI_SS_TIME);
+static uint32_t SPI3_CLK_CFG_addr =  (SPI3_BASE_addr + MXC_R_SPI_CLK_CFG);
+static uint32_t SPI3_DMA_addr =  (SPI3_BASE_addr + MXC_R_SPI_DMA);
+static uint32_t SPI3_INT_FL_addr =  (SPI3_BASE_addr + MXC_R_SPI_INT_FL);
+static uint32_t SPI3_INT_EN_addr =  (SPI3_BASE_addr + MXC_R_SPI_INT_EN);
+static uint32_t SPI3_WAKE_FL_addr =  (SPI3_BASE_addr + MXC_R_SPI_WAKE_FL);
+static uint32_t SPI3_WAKE_EN_addr =  (SPI3_BASE_addr + MXC_R_SPI_WAKE_EN);
+static uint32_t SPI3_STAT_addr =  (SPI3_BASE_addr + MXC_R_SPI_STAT);
 
 static uint32_t DMA0_CTRL_addr =  DMA0_BASE_addr;
 static uint32_t DMA0_INTR_addr =  (DMA0_BASE_addr + MXC_R_DMA_INTR );
@@ -141,6 +170,19 @@ static uint32_t SPI2_INT_EN_direct_probe =  0x00000000;
 static uint32_t SPI2_WAKE_FL_direct_probe =  0x00000000;
 static uint32_t SPI2_WAKE_EN_direct_probe =  0x00000000;
 static uint32_t SPI2_STAT_direct_probe =  0x00000000;
+
+static uint32_t SPI3_DATA0_direct_probe =  0x00000000;
+static uint32_t SPI3_CTRL0_direct_probe =  0x00000000;
+static uint32_t SPI3_CTRL1_direct_probe =  0x00000000;
+static uint32_t SPI3_CTRL2_direct_probe =  0x00000000;
+static uint32_t SPI3_SS_TIME_direct_probe =  0x00000000;
+static uint32_t SPI3_CLK_CFG_direct_probe =  0x00000000;
+static uint32_t SPI3_DMA_direct_probe =  0x00000000;
+static uint32_t SPI3_INT_FL_direct_probe =  0x00000000;
+static uint32_t SPI3_INT_EN_direct_probe =  0x00000000;
+static uint32_t SPI3_WAKE_FL_direct_probe =  0x00000000;
+static uint32_t SPI3_WAKE_EN_direct_probe =  0x00000000;
+static uint32_t SPI3_STAT_direct_probe =  0x00000000;
 
 
 volatile uint32_t TMR0_CNT_direct_probe =  0x00000000;

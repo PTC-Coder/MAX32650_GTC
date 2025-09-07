@@ -26,3 +26,6 @@ LIB_SDHC = 0
 FATFS_VERSION = ff15
 
 PROJ_LDFLAGS += -Wl,--print-memory-usage
+
+#VPATH += RTT
+#IPATH += RTT
