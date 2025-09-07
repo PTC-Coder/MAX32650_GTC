@@ -58,7 +58,7 @@
 /********************************************************************************************/
 // RECORDING TIME IN DMA Blocks (each DMA block is 21.33 ms)
 
-#define RECORDING_TIME_DMABLOCKS  1000//10000
+#define RECORDING_TIME_DMABLOCKS  2000//10000
 
 
 //Pin 0.20 for ADC clock enable or disable
@@ -75,8 +75,8 @@
 // defines for DMA
 //#define DMA_bufflen 8192 // 24-bit words (not bytes)
 // magpie_new; change dma length to be divisible by all possible decimation factors
-#define DMA_buffLen 8192 // 24-bit words (not bytes), note this is divisible by 2,4,8,12 and 24 for all sample-rates
-#define DMA_buffLen_bytes 3*DMA_buffLen //in  bytes, = 8K 24-bit words;after decimation, = 1K 48KHz words).
+#define DMA_buffLen (512 * 16) // 24-bit words (not bytes), note this is divisible by 2,4,8,12 and 24 for all sample-rates
+#define DMA_buffLen_bytes (3 * DMA_buffLen) //in  bytes, = 8K 24-bit words;after decimation, = 1K 48KHz words).
 
 // buffer lengths for various decimation factors (all integers)
 #define buffLen_deci2x DMA_buffLen/2 // after 1 stage (dec 2)
@@ -348,7 +348,7 @@ static uint32_t FS = 48000; // use for calculations. This will be set to agree w
 
 static uint32_t numBytesSDwrite = 0u; // number of bytes to write in each f_write function, varies with sample-rate
 static uint8_t magpie_bitdepth = 0u; // 1 = 24 bits, 0 = 16 bits
-static uint32_t block_ptr_modulo_mask = 0x00000003;
+static uint32_t block_ptr_modulo_mask = 3; // 0x00000003;
 // apply to roll over the block index, for the sd-card slow-write buffer scheme.
 // This varies with sample-rate. Low sample-rates have small buffer write sizes,
 // so you can fit lots of blocks in the same SD buffer memory
@@ -796,7 +796,7 @@ void SPI3_init_slave()
 	//Setting width of the SPI in this case 3- wire SPI for SPI3 master
 	MXC_SPI_SetWidth(MXC_SPI3, SPI_WIDTH_3WIRE);
 	//Setting the SPI mode
-	MXC_SPI_SetMode(MXC_SPI3, SPI_MODE_2);
+	MXC_SPI_SetMode(MXC_SPI3, SPI_MODE_1);
 
 	MXC_SPI_SlaveTransactionAsync(&SPI3_req); // complete the init; don't use the data!
 
@@ -821,7 +821,9 @@ void DMA_CALLBACK_func(int a, int b)
 
 }
 
-
+//********************************************************************************** */
+// ================================  INIT DMA ========================================
+//********************************************************************************** */
 
 void init_dma_MXC()
 {
@@ -836,8 +838,7 @@ void init_dma_MXC()
 	mxc_dma_srcdst_t dma_transfer;
 	dma_transfer.ch = mychannel;
 	dma_transfer.source = NULL;
-	//dma_transfer.source = (void*)SPI3_BASE_addr;
-	
+	//dma_transfer.source = (void*)SPI3_BASE_addr;	
 	dma_transfer.dest = &dmaDestBuff[0];
 	dma_transfer.len = DMA_buffLen_bytes; // 3 X 8K bytes
 
@@ -854,7 +855,6 @@ void init_dma_MXC()
 	advConfig.prio = MXC_DMA_PRIO_HIGH;
 	advConfig.reqwait_en = 0;
 	//advConfig.reqwait_en = 1; // Wait for SPI request
-
 	advConfig.tosel = MXC_DMA_TIMEOUT_4_CLK;
 	advConfig.pssel = MXC_DMA_PRESCALE_DISABLE;
 	advConfig.burst_size = 24;
@@ -865,28 +865,28 @@ void init_dma_MXC()
 	MXC_DMA_SetSrcDst(dma_transfer); // is this redundant??
 	MXC_DMA_SetSrcReload(dma_transfer);// is this redundant??
 	MXC_DMA_SetChannelInterruptEn(mychannel, false, true); // ctz
-	MXC_DMA_SetCallback(mychannel, DMA_CALLBACK_func);
+	//MXC_DMA_SetCallback(mychannel, DMA_CALLBACK_func);
 	MXC_DMA_EnableInt(mychannel);
 
-	// Manually enable DMA interrupt and CTZ interrupt (API doesn't set these properly)
-	MXC_DMA->cn |= (1 << mychannel); // Enable interrupt for our channel in CN register
-	MXC_DMA->ch[mychannel].cfg |= (1UL << 31); // Enable CTZ interrupt in channel config
-	printf("DMA interrupt system configured and verified working\n");
+	// // Manually enable DMA interrupt and CTZ interrupt (API doesn't set these properly)
+	// MXC_DMA->cn |= (1 << mychannel); // Enable interrupt for our channel in CN register
+	// MXC_DMA->ch[mychannel].cfg |= (1UL << 31); // Enable CTZ interrupt in channel config
+	// printf("DMA interrupt system configured and verified working\n");
 	
-	// Set up interrupt vector directly to our handler (bypass callback mechanism)
-	MXC_NVIC_SetVector(MXC_DMA_CH_GET_IRQ(mychannel), DMA0_IRQHandler);
-	NVIC_EnableIRQ(MXC_DMA_CH_GET_IRQ(mychannel));
+	// // Set up interrupt vector directly to our handler (bypass callback mechanism)
+	// MXC_NVIC_SetVector(MXC_DMA_CH_GET_IRQ(mychannel), DMA0_IRQHandler);
+	// NVIC_EnableIRQ(MXC_DMA_CH_GET_IRQ(mychannel));
 	
-	printf("DMA interrupt setup: IRQ %d -> DMA0_IRQHandler\n", MXC_DMA_CH_GET_IRQ(mychannel));
+	// printf("DMA interrupt setup: IRQ %d -> DMA0_IRQHandler\n", MXC_DMA_CH_GET_IRQ(mychannel));
 	
-	// Verify NVIC setup
-	uint32_t irq_num = MXC_DMA_CH_GET_IRQ(mychannel);
-	printf("NVIC verification:\n");
-	printf("  IRQ %d enabled: %s\n", irq_num, NVIC_GetEnableIRQ(irq_num) ? "YES" : "NO");
-	printf("  IRQ %d pending: %s\n", irq_num, NVIC_GetPendingIRQ(irq_num) ? "YES" : "NO");
-	printf("  IRQ %d priority: %d\n", irq_num, NVIC_GetPriority(irq_num));
+	// // Verify NVIC setup
+	// uint32_t irq_num = MXC_DMA_CH_GET_IRQ(mychannel);
+	// printf("NVIC verification:\n");
+	// printf("  IRQ %d enabled: %s\n", irq_num, NVIC_GetEnableIRQ(irq_num) ? "YES" : "NO");
+	// printf("  IRQ %d pending: %s\n", irq_num, NVIC_GetPendingIRQ(irq_num) ? "YES" : "NO");
+	// printf("  IRQ %d priority: %d\n", irq_num, NVIC_GetPriority(irq_num));
 	
-	printf("DMA channel %d configured successfully\n", mychannel);
+	// printf("DMA channel %d configured successfully\n", mychannel);
 
 }
 
@@ -1588,14 +1588,14 @@ int main(void)
 
 	debug1= 16;
 
-	for (size_t i = 0; i < 5; i++)
-	{
-		LED_On(LED_GREEN);
-		MXC_Delay(500000);
-		LED_Off(LED_GREEN);
-		MXC_Delay(500000);
-		printf("Start ADC Clock in ... %d\n", 5-i);
-	}
+	// for (size_t i = 0; i < 5; i++)
+	// {
+	// 	LED_On(LED_GREEN);
+	// 	MXC_Delay(500000);
+	// 	LED_Off(LED_GREEN);
+	// 	MXC_Delay(500000);
+	// 	printf("Start ADC Clock in ... %d\n", 5-i);
+	// }
 
 	// blue led pin 5 on feather
 	// gpio_in30.port =MXC_GPIO_PORT_OUT0;
@@ -1698,12 +1698,14 @@ int main(void)
 	}
 	printf("Partial Writes cleared ...\n\n");
 
+	printf("Start DMA and recording ...\n\n");
+
 	SPI3_CTRL0_direct |= 0x00000001; // start the port (fifo was previously cleared)
 	MXC_DMA_Start(mychannel); // sets bits 0 and 1 of control reg and bit 31 of count reload reg
 
 	// note, the DMA enable and reload bits need to be set every time
 	// in the IRQ handler routine, otherwise it only does a single block transfer
-
+	
 	// magpie_new; write 1 or more blocks, using the slow-sd card recovery scheme
 	u_int32_t bw;
 	while(count_dma_irq < RECORDING_TIME_DMABLOCKS) 
@@ -1721,7 +1723,7 @@ int main(void)
 		offsetSDbuff = blockPtrModuloSDbuff*numBytesSDwrite;
 		//printf("Data Block Consumed Count %d ...\n", dataBlocksConsumedCount);
 
-		if(dataBlocksConsumedCount % 10 == 0)
+		if(dataBlocksConsumedCount % 20 == 0)
 		{
 			LED_Toggle(LED_GREEN);
 		}
